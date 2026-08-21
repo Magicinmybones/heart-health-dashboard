@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Heart health overview</title>
+<script>/* holding state for the entrance, with a failsafe that drops it again if the sequence never runs */
+document.documentElement.className+=" pre";window.__pre=setTimeout(function(){document.documentElement.classList.remove("pre")},4000);</script>
 <style>
   *,*::before,*::after{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; height:100%; width:100%; overflow:hidden;
@@ -442,6 +444,45 @@
     .plus{ width:1.55em; height:1.55em; margin-left:0; }
   }
 
+
+  /* ============================= ENTRANCE ============================
+     A one-shot opening sequence. Everything in this block is either a
+     masking box for a line reveal, a transform reference for one of the
+     SVG hooks, or a holding state that exists only until the sequence
+     takes over. None of it has any effect on the finished screen: the
+     resting frame is the design exactly as authored above.
+
+     Four behaviours carry the whole thing, and each is taken from what
+     the screen already is rather than from an effects list:
+       glass MATERIALISES in place - it condenses, it does not slide;
+       type RISES out of its own line box;
+       the render SETTLES into the composition;
+       the reading DRAWS itself, the way a trace is actually written. */
+
+  /* The line box doubles as the mask. The padding keeps descenders clear
+     of the clip edge and the negative margin hands the height straight
+     back, so each line occupies exactly the space the plain <br> did. */
+  .ln{ display:block; overflow:hidden; padding-bottom:.14em; margin-bottom:-.14em; }
+  .ln>span{ display:block; }
+
+  /* Hooks with no geometry of their own, so the marker, the connector and
+     the rule can be moved without touching the drawing's coordinates. */
+  .mk{ transform-box:view-box; transform-origin:1460px 739px; }
+  .cn{ transform-box:view-box; transform-origin:1461px 712px; }
+  .spo2{ transform-origin:50% 100%; }   /* it unfolds off the connector's tip */
+  .tip .ul{ transform-origin:0 50%; }
+
+  /* The holding state, set by an inline script in <head> so the screen is
+     never painted before the sequence owns it, and dropped by the sequence
+     on its first frame. If that script never runs, or the sequence fails,
+     the class is simply removed and the page is the finished design. */
+  .pre .panel,.pre .card,.pre .tip-glass,.pre .halo,.pre .halo2,.pre .halo3,
+  .pre .heart,.pre .chart-grid,.pre .mk,.pre .cn,.pre .spo2,.pre .dot,
+  .pre .card h2,.pre .secret,.pre .body,.pre .addinfo,
+  .pre .tip a,.pre .tip .ul{ opacity:0; }
+  .pre .ln>span{ transform:translateY(120%); }
+  .pre .chart-trace path{ visibility:hidden; }
+
   @media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
 </style>
 </head>
@@ -484,12 +525,12 @@
       </g>
       <g class="chart-trace">
       <path d="M 1136 733 C 1141.3 730.5 1157.3 723.0 1168 718 C 1178.7 713.0 1191.0 708.5 1200 703 C 1209.0 697.5 1214.3 689.5 1222 685 C 1229.7 680.5 1238.7 673.5 1246 676 C 1253.3 678.5 1259.3 692.5 1266 700 C 1272.7 707.5 1279.3 720.0 1286 721 C 1292.7 722.0 1299.3 711.3 1306 706 C 1312.7 700.7 1320.0 691.2 1326 689 C 1332.0 686.8 1335.3 687.5 1342 693 C 1348.7 698.5 1358.0 712.7 1366 722 C 1374.0 731.3 1382.0 741.0 1390 749 C 1398.0 757.0 1407.3 765.5 1414 770 C 1420.7 774.5 1424.7 778.2 1430 776 C 1435.3 773.8 1440.8 762.7 1446 757 C 1451.2 751.3 1455.7 742.5 1461 742 C 1466.3 741.5 1472.5 748.8 1478 754 C 1483.5 759.2 1488.7 767.2 1494 773 C 1499.3 778.8 1505.3 786.0 1510 789 C 1514.7 792.0 1518.0 794.2 1522 791 C 1526.0 787.8 1529.3 779.5 1534 770 C 1538.7 760.5 1545.3 745.7 1550 734 C 1554.7 722.3 1558.0 710.0 1562 700 C 1566.0 690.0 1569.3 677.2 1574 674 C 1578.7 670.8 1584.7 679.2 1590 681 C 1595.3 682.8 1600.7 685.2 1606 685 C 1611.3 684.8 1616.7 681.7 1622 680 C 1627.3 678.3 1632.7 675.2 1638 675 C 1643.3 674.8 1648.7 676.8 1654 679 C 1659.3 681.2 1664.7 683.3 1670 688 C 1675.3 692.7 1680.7 699.3 1686 707 C 1691.3 714.7 1696.7 726.0 1702 734 C 1707.3 742.0 1712.7 750.0 1718 755 C 1723.3 760.0 1728.7 761.8 1734 764 C 1739.3 766.2 1747.3 767.3 1750 768" stroke="url(#waveFade)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="1461" y1="632" x2="1461" y2="712" stroke="#fff" stroke-opacity=".5"
-            stroke-width="2.5" stroke-dasharray="13 12" stroke-linecap="butt"/>
-      <g transform="translate(1431.5 713.4) scale(1.15 1.18)">
+      <g class="cn"><line x1="1461" y1="632" x2="1461" y2="712" stroke="#fff" stroke-opacity=".5"
+            stroke-width="2.5" stroke-dasharray="13 12" stroke-linecap="butt"/></g>
+      <g class="mk"><g transform="translate(1431.5 713.4) scale(1.15 1.18)">
         <path d="M23.5 41.5C23.5 41.5 1 27.6 1 13.8 1 6.2 6.4 1 13 1c4.4 0 8.2 2.4 10.5 6.1C25.8 3.4 29.6 1 34 1c6.6 0 12 5.2 12 12.8 0 13.8-22.5 27.7-22.5 27.7Z"
               fill="#3cade1" stroke="#fff" stroke-width="4.5" stroke-linejoin="round"/>
-      </g>
+      </g></g>
       </g>
     </svg>
 
@@ -513,12 +554,12 @@
       </button>
     </section>
 
-    <h1 class="title t-display">Heart health<br>overview</h1>
+    <h1 class="title t-display"><span class="ln"><span>Heart health</span></span><span class="ln"><span>overview</span></span></h1>
 
     <div class="callout">
       <div class="tip-glass"></div>
       <div class="tip">
-        <p class="t-heading">The valve<br>is not working perfectly!</p>
+        <p class="t-heading"><span class="ln"><span>The valve</span></span><span class="ln"><span>is not working perfectly!</span></span></p>
         <a class="t-link" href="#">See more</a>
         <i class="ul"></i>
       </div>
@@ -560,6 +601,213 @@
     window.addEventListener('resize', fit, { passive: true });
     window.addEventListener('orientationchange', fit);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+  })();
+</script>
+
+<script>
+  /* ============================== ENTRANCE ==============================
+     One master timeline. It runs once, on the first paint, and then the
+     screen is the static design for the rest of its life - no scroll
+     hooks, no hover motion, no idle loop, nothing left playing.
+
+     THE SCORE - the order is the composition's own, not the DOM's, and
+     it is written so the eye is handed from one area to the next:
+
+       0.00  the glass forms out of the forest .............. panel
+       0.14  light gathers where the render will be ......... halos
+       0.26  the screen names itself ........................ title, line by line
+       0.50  the subject arrives .............. CENTRE ...... render
+       0.82  the left column fills in ......... LEFT ........ card, then its words
+       1.20  the field under the reading appears ............ grid
+       1.30  the reading writes itself out
+             from behind the render ......... RIGHT ........ trace
+       1.76  it reaches the valve, which sends the
+             figure up to the readout ....................... marker, connector, SpO2
+       1.98  the point is marked, and then
+             explained ...................... BOTTOM ....... dot, callout
+       2.88  complete - and nothing moves again
+
+     Beats overlap at their tails - each starts while the one before it is
+     still resolving - so the screen reads as one composition assembling
+     itself rather than a queue of elements taking turns. What does NOT
+     overlap is the two endings: the readout finishes before the callout
+     begins, because both are conclusions and they would otherwise argue
+     over where the eye should come to rest. It rests on the callout.
+
+     On a phone the same beats are re-ordered to the mobile stack, where
+     the callout sits on the render and the reading and the card are the
+     last two blocks down the page; every distance is scaled down with
+     it. Same motion language, less travel. */
+  (function () {
+    var root = document.documentElement,
+        pre  = function () { clearTimeout(window.__pre);
+                             root.classList.remove('pre'); };
+
+    /* Reduced motion, or a browser without the animation API: no sequence
+       at all - the finished screen, immediately. */
+    if (!('animate' in Element.prototype) ||
+        matchMedia('(prefers-reduced-motion: reduce)').matches) { pre(); return; }
+
+    var $  = function (s) { return document.querySelector(s); },
+        $$ = function (s) { return [].slice.call(document.querySelectorAll(s)); };
+
+    /* Read once. One page initialisation produces one entrance: nothing
+       here re-reads the viewport, so a resize mid-sequence cannot restart
+       or re-time it. */
+    var sm = matchMedia('(max-width:750px)').matches,
+        k  = sm ? .6 : 1;                    /* travel scale, not a re-design */
+
+    /* Easing. Entrances decelerate; nothing overshoots, bounces or springs.
+       EXPO carries the two statements and the render - it covers most of
+       its distance early, which is what lets a long reveal still feel
+       fast. OUT is the everyday settle. GLASS is nearly symmetrical, so a
+       surface appears to thicken rather than snap in. DRAW is the only
+       in-out curve: a trace is written with a hand, not thrown. */
+    var EXPO  = 'cubic-bezier(.16,1,.3,1)',
+        OUT   = 'cubic-bezier(.22,.9,.28,1)',
+        GLASS = 'cubic-bezier(.25,.5,.3,1)',
+        DRAW  = 'cubic-bezier(.45,.05,.25,1)';
+
+    /* The sequence waits on the two things it cannot open without: the
+       typeface (font-display is block, so the title would otherwise rise
+       invisibly) and the render's own bitmap. The wait is capped, and it
+       is not a loader - what is on screen meanwhile is the forest, which
+       is where this screen starts anyway. */
+    var gate = setTimeout(open, 1200), opened = false;
+    Promise.all([document.fonts ? document.fonts.ready : 0,
+                 decode($('#bg')), decode($('.heart'))]).then(open, open);
+
+    function decode(img) {
+      return img && img.decode ? img.decode().catch(function () {}) : 0;
+    }
+    function open() {
+      if (opened) { return; }                /* one initialisation, one entrance */
+      opened = true; clearTimeout(gate); play();
+    }
+
+    function play() {
+      var A = [];                            /* the timeline itself */
+      function cue(t, el, frames, dur, ease) {
+        if (!el) { return; }
+        A.push(el.animate(frames, { delay: t * 1000, duration: dur * 1000,
+                                    easing: ease, fill: 'backwards' }));
+      }
+
+      /* the four behaviours */
+      var MATERIALISE = [{ opacity: 0 }, { opacity: 1 }];
+      function settle(d) {                                  /* supporting content */
+        return [{ opacity: 0, transform: 'translateY(' + (d * k) + 'px)' },
+                { opacity: 1, transform: 'none' }];
+      }
+      var RISE = [{ transform: 'translateY(120%)' },         /* masked line */
+                  { transform: 'none' }];
+      var ARRIVE = [{ opacity: 0, transform: 'translateY(' + (16 * k) +
+                                  'px) scale(' + (sm ? .988 : .978) + ')' },
+                    { opacity: 1, transform: 'none' }];      /* the render */
+
+      /* The two scores. Both run the same beats in the order their own
+         layout reads in - on desktop the card is the left column and the
+         reading crosses the panel to the right of it; on a phone the
+         reading and the card are the last two blocks down the stack. */
+      var T = sm
+        ? { panel:0, halo:.12, title:.24, heart:.46, dot:.98, tip:1.04,
+            grid:1.46, trace:1.56, mark:2.00, pill:2.16, card:2.06 }
+        : { panel:0, halo:.14, title:.26, heart:.50, card:.82, grid:1.20,
+            trace:1.30, mark:1.76, pill:1.92, dot:1.98, tip:2.06 };
+
+      /* --- the surface, and the light that precedes the render ------- */
+      cue(T.panel, $('.panel'), MATERIALISE, .9, GLASS);
+      /* three coincident gradients that read as one glow, so they are given
+         one timing rather than a stagger - and they finish ahead of the
+         render, which is what makes the render feel expected */
+      $$('.halo,.halo2,.halo3').forEach(function (el) {
+        cue(T.halo, el, MATERIALISE, .8, GLASS);
+      });
+
+      /* --- the screen names itself ----------------------------------- */
+      $$('.title .ln>span').forEach(function (el, i) {
+        cue(T.title + i * .09, el, RISE, .86, EXPO);
+      });
+
+      /* --- the subject ----------------------------------------------- */
+      cue(T.heart, $('.heart'), ARRIVE, 1.1, EXPO);
+
+      /* --- the card: the surface condenses, its contents settle into it */
+      cue(T.card, $('.card'), MATERIALISE, .72, GLASS);
+      /* Only the words are given their own motion. The portrait and the two
+         pills are furniture: they come up inside the surface's own fade,
+         which is what keeps this a card arriving rather than six things
+         arriving. The offsets are not an even stagger either - headline,
+         then the label and its paragraph as one pair, then the button a
+         beat later, which is how the card is actually read. */
+      [['.card h2', .12], ['.secret', .19], ['.body', .24], ['.addinfo', .31]]
+        .forEach(function (b) {
+          cue(T.card + b[1], $(b[0]), settle(14), .52, OUT);
+        });
+
+      /* --- the reading: field, signal, then what the signal found ----- */
+      cue(T.grid, $('.chart-grid'), MATERIALISE, .55, GLASS);
+
+      /* Only the dash pattern is written to the element; the offset that
+         hides the line is the tween's own backwards fill. That way the
+         moment the draw ends the offset falls back to nought and the
+         stroke simply stays drawn - it cannot revert to a held-back state
+         while the rest of the sequence plays out. */
+      var trace = $('.chart-trace path'),
+          len   = Math.ceil(trace.getTotalLength());
+      trace.style.strokeDasharray = len + ' ' + len;
+      A.push(trace.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+        { delay: T.trace * 1000, duration: 950, easing: DRAW, fill: 'backwards' }));
+
+      cue(T.mark,       $('.mk'), [{ opacity: 0, transform: 'scale(.55)' },
+                                   { opacity: 1, transform: 'none' }], .42, EXPO);
+      cue(T.mark + .06, $('.cn'), [{ transform: 'scaleY(0)' },
+                                   { transform: 'none' }], .4, OUT);
+      /* the readout is the one place the phone differs: its pill already
+         carries a centring transform there, so it is faded, not scaled */
+      cue(T.pill, $('.spo2'), sm ? MATERIALISE
+                                 : [{ opacity: 0, transform: 'scale(.92)' },
+                                    { opacity: 1, transform: 'none' }], .48, OUT);
+
+      /* --- the point is marked, then explained ------------------------ */
+      cue(T.dot, $('.dot'), [{ opacity: 0, transform: 'scale(.4)' },
+                             { opacity: 1, transform: 'none' }], .38, EXPO);
+      cue(T.tip, $('.tip-glass'), MATERIALISE, .62, GLASS);
+      $$('.tip .ln>span').forEach(function (el, i) {
+        cue(T.tip + .10 + i * .08, el, RISE, .64, EXPO);
+      });
+      cue(T.tip + .32, $('.tip a'),   settle(10), .46, OUT);
+      cue(T.tip + .37, $('.tip .ul'), [{ opacity: 0, transform: 'scaleX(0)' },
+                                       { opacity: 1, transform: 'none' }], .42, OUT);
+
+      /* One time origin for every tween, so the score is exact rather than
+         however long the block above took to build. */
+      try {
+        var t0 = document.timeline.currentTime;
+        A.forEach(function (a) { a.startTime = t0; });
+      } catch (e) {}
+
+      /* Only the surfaces that actually move get a layer hint, and only
+         for the length of the sequence. */
+      var hinted = [[$('.heart'), 'transform,opacity'], [$('.panel'), 'opacity'],
+                    [$('.card'), 'opacity'], [$('.tip-glass'), 'opacity']];
+      hinted.forEach(function (h) { if (h[0]) { h[0].style.willChange = h[1]; } });
+
+      pre();                     /* same task as the tweens: no flash between */
+
+      /* Full stop. Each tween is cancelled once it has finished, which
+         leaves its element rendering the authored CSS and empties
+         document.getAnimations(); the drawing gets its plain stroke back
+         and the layer hints are dropped. After this there is no timeline,
+         no listener, no timer and no frame loop left from the entrance. */
+      Promise.all(A.map(function (a) { return a.finished; })).then(stop, stop);
+      function stop() {
+        A.forEach(function (a) { try { a.cancel(); } catch (e) {} });
+        A.length = 0;
+        trace.style.strokeDasharray = '';
+        hinted.forEach(function (h) { if (h[0]) { h[0].style.willChange = ''; } });
+      }
+    }
   })();
 </script>
 </body>
