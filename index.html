@@ -356,7 +356,7 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
        design. The panel is excluded: an absolutely positioned grid child that
        is given a grid line is placed against its grid area rather than the
        stage's padding box, which would inset the surface twice. */
-    #stage>*:not(.panel):not(.heart3d):not(.heart-skel):not(#skeleton){ grid-column:1; }
+    #stage>*:not(.panel):not(.heart3d):not(#skeleton){ grid-column:1; }
 
     #stage>.panel{ position:absolute; inset:var(--pad-outer); width:auto; height:auto;
                     border-radius:var(--radius-panel); }
@@ -542,35 +542,14 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
   #stage>#skeleton.on .sk-sheen>i{ animation:sk-sheen 1.9s linear infinite; }
   @keyframes sk-sheen{ from{ transform:translateX(-42%); } to{ transform:translateX(42%); } }
 
-  /* The loading state, for the stretch where the model is still coming
-     down. It is not a grey box: the heart's own artwork is already on
-     screen and finished, so replacing it with a placeholder would be
-     trading real content for less. Instead the skeleton is a sheen that
-     travels across the poster, masked to the poster's own silhouette, so
-     it reads as this heart being worked on rather than as an empty slot.
-
-     It is shown only once the entrance has finished and only if the model
-     is genuinely still in flight, so a warm cache never flashes it, and it
-     never competes with the heart's own arrival. */
-  #stage>.heart-skel{ position:absolute; z-index:5; opacity:0;
-                       pointer-events:none; overflow:hidden;
-                       transition:opacity .45s cubic-bezier(.25,.5,.3,1);
-                       -webkit-mask-image:url(assets/illustrations/anatomical-heart.webp);
-                       mask-image:url(assets/illustrations/anatomical-heart.webp);
-                       -webkit-mask-size:contain; mask-size:contain;
-                       -webkit-mask-position:center; mask-position:center;
-                       -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
-  #stage>.heart-skel.on{ opacity:1; }      /* the holding rule carries an id */
-  /* The band is a child so the sweep is a transform rather than a moving
-     background: one composited property, on the one element that is
-     allowed to move while the page waits. */
-  #stage>.heart-skel>i{ position:absolute; inset:-12% -70%; display:block;
-      background:linear-gradient(105deg,
-                 rgba(214,228,255,0) 38%, rgba(224,236,255,.38) 50%, rgba(214,228,255,0) 62%); }
-  #stage>.heart-skel.on>i{ animation:sk-sheen 1.75s linear infinite; }
-  /* Both halves of the hand-off have to outrank the holding rule above,
-     which carries an id - so the reveal is written from the same id. */
-  #stage.heart-live .heart{ opacity:0; }    /* the poster frame steps aside */
+  /* The still render is not shown any more. It stays in the document
+     because the composition is measured from it - the canvas is pinned to
+     its box and the skeleton takes the heart's silhouette from its
+     artwork - and because it carries the alternative text. It is painted
+     only if the model cannot be, which is the one case where a still
+     heart beats no heart at all. Both rules are written from the id, so
+     they outrank the holding rule above. */
+  #stage.heart-live .heart{ opacity:0; }
   #stage.heart-live>.heart3d{ opacity:1; }
 
   @media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
@@ -645,7 +624,6 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
     </section>
 
     <div id="skeleton" aria-hidden="true"></div>
-    <div class="heart-skel" aria-hidden="true"><i></i></div>
     <canvas class="heart3d" aria-hidden="true"></canvas>
 
     <h1 class="title t-display"><span class="ln"><span>Heart health</span></span><span class="ln"><span>overview</span></span></h1>
@@ -938,17 +916,27 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
         GLASS = 'cubic-bezier(.25,.5,.3,1)',
         DRAW  = 'cubic-bezier(.45,.05,.25,1)';
 
-    /* The sequence waits on the two things it cannot open without: the
+    /* The sequence waits on everything it cannot open without: the
        typeface (font-display is block, so the title would otherwise rise
-       invisibly) and the render's own bitmap. The wait is capped, and it
-       is not a loader - what is on screen meanwhile is the forest, which
-       is where this screen starts anyway. */
-    var gate = setTimeout(open, 1200), opened = false;
+       invisibly), the backdrop, and the heart itself - which now means the
+       model, not a picture of it. Until they are in, the screen is the
+       skeleton; the composition is never shown half-made.
+
+       The cap is long because the thing being waited for is large, and it
+       exists only so a stalled network cannot hold the page shut forever.
+       The render signals either way, so this is a backstop, not a timer. */
+    var gate = setTimeout(open, 20000), opened = false;
     Promise.all([document.fonts ? document.fonts.ready : 0,
-                 decode($('#bg')), decode($('.heart'))]).then(open, open);
+                 decode($('#bg')), decode($('.heart')), heart()]).then(open, open);
 
     function decode(img) {
       return img && img.decode ? img.decode().catch(function () {}) : 0;
+    }
+    function heart() {
+      return new Promise(function (res) {
+        if (window.__heartSettled) { res(); return; }
+        document.addEventListener('heart-ready', res, { once: true });
+      });
     }
     function open() {
       if (opened) { return; }                /* one initialisation, one entrance */
@@ -1004,7 +992,11 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
       });
 
       /* --- the subject ----------------------------------------------- */
-      cue(T.heart, $('.heart'), ARRIVE, 1.1, EXPO);
+      /* Whichever heart is the one on screen: the render when it made it,
+         the still frame when it did not. Only one of the two is ever
+         painted, and animating the other would bring it back. */
+      cue(T.heart, $(root.querySelector('#stage.heart-live') ? '.heart3d' : '.heart'),
+          ARRIVE, 1.1, EXPO);
 
       /* --- the card: the surface condenses, its contents settle into it */
       cue(T.card, $('.card'), MATERIALISE, .72, GLASS);
@@ -1063,8 +1055,9 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
 
       /* Only the surfaces that actually move get a layer hint, and only
          for the length of the sequence. */
-      var hinted = [[$('.heart'), 'transform,opacity'], [$('.panel'), 'opacity'],
-                    [$('.card'), 'opacity'], [$('.tip-glass'), 'opacity']];
+      var hinted = [[$('.heart3d'), 'transform,opacity'], [$('.heart'), 'transform,opacity'],
+                    [$('.panel'), 'opacity'], [$('.card'), 'opacity'],
+                    [$('.tip-glass'), 'opacity']];
       hinted.forEach(function (h) { if (h[0]) { h[0].style.willChange = h[1]; } });
 
       pre();                     /* same task as the tweens: no flash between */
@@ -1112,11 +1105,20 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
 
   const img    = document.querySelector('.heart');
   const canvas = document.querySelector('.heart3d');
-  const skel   = document.querySelector('.heart-skel');
   const stage  = document.getElementById('stage');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 
   if (!img || !canvas || !stage) { throw new Error('render: nothing to attach to'); }
+
+  /* Anything below that throws - no WebGL context, a decoder that will not
+     start - must not leave the page holding its breath behind the
+     skeleton. The entrance is released on the way out. */
+  addEventListener('error', function () {
+    if (!window.__heartSettled) {
+      window.__heartSettled = true;
+      document.dispatchEvent(new Event('heart-ready'));
+    }
+  }, { once: true });
 
   /* ---------------------------------------------------------------- rig --
      Lifted from the prototype unchanged: a room environment for the
@@ -1169,14 +1171,10 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
     const scale = (sr.width / stage.offsetWidth) || 1;   /* the canvas tier's --s */
     const w = ir.width / scale, h = ir.height / scale;
 
-    /* the render and the loading state occupy the poster's box alike */
-    [canvas, skel].forEach((el) => {
-      if (!el) { return; }
-      el.style.left   = ((ir.left - sr.left) / scale) + 'px';
-      el.style.top    = ((ir.top  - sr.top)  / scale) + 'px';
-      el.style.width  = w + 'px';
-      el.style.height = h + 'px';
-    });
+    canvas.style.left   = ((ir.left - sr.left) / scale) + 'px';
+    canvas.style.top    = ((ir.top  - sr.top)  / scale) + 'px';
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
 
     /* The backing store is sized in real device pixels - the stage's scale
        included, since that is what the render is finally seen through -
@@ -1294,70 +1292,45 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
   });
 
   /* ------------------------------------------------------------- hand-off --
-     The render replaces the poster only once it has a frame to show, and
-     only once the entrance has finished with that same element, so the two
-     never animate the image's opacity against each other. */
-  function afterEntrance() {
-    return new Promise((resolve) => {
-      if (window.__entranceDone) { resolve(); return; }
-      let done = false;
-      const bail = setTimeout(go, 6000);          /* never wait on a signal forever */
-      function go() { if (done) { return; } done = true; clearTimeout(bail); resolve(); }
-      document.addEventListener('entrance-done', go, { once: true });
-    });
-  }
+     The screen does not open on a stand-in. The entrance waits on this
+     signal, so the composition arrives with the real heart already in it
+     and already beating - and until it comes, what is on screen is the
+     skeleton.
 
-  function reveal() {
-    /* The class is the resting state and it is CSS, so the hand-off is
-       already correct the moment it is set. The two tweens only smooth the
-       crossing, and they are dropped once they have run - the same rule the
-       entrance follows, so nothing of this is left attached to the page. */
-    stage.classList.add('heart-live');
-    if (!('animate' in Element.prototype)) { return; }
-    const o = { duration: 560, easing: 'cubic-bezier(.25,.5,.3,1)', fill: 'backwards' };
-    const out = img.animate([{ opacity: 1 }, { opacity: 0 }], o);
-    const into = canvas.animate([{ opacity: 0 }, { opacity: 1 }], o);
-    const drop = () => [out, into].forEach((a) => { try { a.cancel(); } catch (e) {} });
-    Promise.all([out.finished, into.finished]).then(drop, drop);
+     The signal is sent either way. If the model cannot be had at all the
+     page must still open, and it opens on the still render: a heart that
+     does not beat is worth more than a placeholder that never leaves. */
+  function settled(ok) {
+    if (window.__heartSettled) { return; }
+    if (ok) { stage.classList.add('heart-live'); start(); }
+    window.__heartSettled = true;
+    document.dispatchEvent(new Event('heart-ready'));
   }
 
   /* The model carries the same 997,700 vertices the prototype's export
      does; it is only packed differently - quantized attributes behind
      EXT_meshopt_compression, which is a third of the bytes off the wire
      for identical geometry. That costs the decoder imported above. */
-  /* The skeleton is only ever honest: it goes up after the entrance has
-     settled and only if the model has not already arrived, and it comes
-     down the moment there is something to show - or nothing more to wait
-     for, if the load fails. Reduced motion skips it: a sweeping band is
-     exactly the kind of thing that preference is asking us not to run. */
-  let arrived = false;
-  function skeleton(on) {
-    if (!skel) { return; }
-    skel.classList.toggle('on', on && !reduce.matches);
-  }
-  afterEntrance().then(() => { fitToPoster(); if (!arrived) { skeleton(true); } });
-
   fitToPoster();
   new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(MODEL, async (gltf) => {
-    arrived = true;                  /* before any await - a warm cache must not raise it */
-    const model = gltf.scene;
-    polish(model);
-    frameModel(model);
-    heartRoot.add(model);
-    fitToPoster();
+    try {
+      const model = gltf.scene;
+      polish(model);
+      frameModel(model);
+      heartRoot.add(model);
+      fitToPoster();
 
-    if (renderer.compileAsync) { await renderer.compileAsync(scene, camera); }
-    else { renderer.compile(scene, camera); }
-    renderer.render(scene, camera);                /* a frame exists before the swap */
-
-    await afterEntrance();
-    skeleton(false);                 /* comes down as the render goes up */
-    start();
-    reveal();
+      if (renderer.compileAsync) { await renderer.compileAsync(scene, camera); }
+      else { renderer.compile(scene, camera); }
+      renderer.render(scene, camera);            /* a frame exists before it is shown */
+      settled(true);
+    } catch (err) {
+      console.warn('render: the heart model arrived but could not be prepared.', err);
+      settled(false);
+    }
   }, undefined, (err) => {
-    arrived = true;
-    skeleton(false);
-    console.warn('render: the heart model could not be loaded; keeping the poster frame.', err);
+    console.warn('render: the heart model could not be loaded; opening on the still render.', err);
+    settled(false);
   });
 </script>
 </body>
