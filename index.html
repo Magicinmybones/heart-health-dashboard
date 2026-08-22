@@ -580,19 +580,27 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
         stage = document.getElementById('stage'),
         bg    = document.getElementById('bg');
     function num(p) { return parseFloat(getComputedStyle(stage).getPropertyValue(p)); }
+    var applied = '';
     function fit() {
       var vw = window.innerWidth, vh = window.innerHeight,
           cw = num('--canvas-w'), ch = num('--canvas-h'),
           fw = num('--fit-w'),    fh = num('--fit-h'),
-          flow = num('--flow') === 1, s;
+          flow = num('--flow') === 1, s, h;
       if (flow) {
         /* the canvas is taller than any phone: fit its width, scroll its height */
         s = Math.min(vw / fw, vh / num('--fit-vh'), 1);   /* never larger than the design */
-        frame.style.height = (ch * s) + 'px';
+        h = (ch * s) + 'px';
       } else {
         s = Math.min(Math.max(vw / cw, vh / ch), Math.min(vw / fw, vh / fh));
-        frame.style.height = '';
+        h = '';
       }
+      /* Nothing is written unless the fit actually changed. That keeps the
+         observer below from ever feeding itself: an unchanged viewport
+         produces no write, so no write can produce another callback. */
+      var state = vw + 'x' + vh + '|' + cw + 'x' + ch + '|' + s + '|' + h;
+      if (state === applied) { return; }
+      applied = state;
+      frame.style.height = h;
       stage.style.setProperty('--s', s);
       bg.style.transform = 'translate(-50%,-50%) scale(' +
         Math.max(vw / 1920, vh / 1440) + ')';
@@ -601,6 +609,15 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
     window.addEventListener('resize', fit, { passive: true });
     window.addEventListener('orientationchange', fit);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+    /* A resize event is not guaranteed for every change of viewport. A
+       device emulator being switched on or off, a change of device pixel
+       ratio, or a tier change that moves the layout viewport without
+       moving the window can all arrive without one - and because the
+       canvas is scaled from that viewport, missing it leaves the screen
+       scaled for the tier it was opened in until the page is reloaded.
+       Watching the document's own box catches the change itself rather
+       than waiting to be told about it. */
+    if (window.ResizeObserver) { new ResizeObserver(fit).observe(document.documentElement); }
   })();
 </script>
 
