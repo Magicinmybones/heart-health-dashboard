@@ -356,7 +356,7 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
        design. The panel is excluded: an absolutely positioned grid child that
        is given a grid line is placed against its grid area rather than the
        stage's padding box, which would inset the surface twice. */
-    #stage>*:not(.panel){ grid-column:1; }
+    #stage>*:not(.panel):not(.heart3d){ grid-column:1; }
 
     #stage>.panel{ position:absolute; inset:var(--pad-outer); width:auto; height:auto;
                     border-radius:var(--radius-panel); }
@@ -483,6 +483,28 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
   .pre .ln>span{ transform:translateY(120%); }
   .pre .chart-trace path{ visibility:hidden; }
 
+
+  /* ============================== RENDER ==============================
+     The heart is drawn twice. The image is the poster frame: it is what
+     the screen has always been, it arrives with the entrance, and it is
+     what stays if this browser has no WebGL or the model never turns up.
+     The canvas is the same heart as geometry, and it takes over only once
+     it has something to show - at which point it starts beating.
+
+     The canvas is not part of any tier's layout. It is pinned over the
+     image's own box by script, in the stage's coordinate space, so it
+     inherits every placement the image already has - desktop, both
+     tablets and the phone - without one of them having to place it. That
+     is also why it is excluded from the mobile grid above: an absolutely
+     positioned grid child that is given a grid line is placed against its
+     grid area instead of the box we are pinning it to. */
+  #stage>.heart3d{ position:absolute; z-index:5; opacity:0;
+                    pointer-events:none; user-select:none; }
+  /* Both halves of the hand-off have to outrank the holding rule above,
+     which carries an id - so the reveal is written from the same id. */
+  #stage.heart-live .heart{ opacity:0; }    /* the poster frame steps aside */
+  #stage.heart-live>.heart3d{ opacity:1; }
+
   @media (prefers-reduced-motion:reduce){ *{ animation:none!important; transition:none!important; } }
 </style>
 </head>
@@ -553,6 +575,8 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
         </span>
       </button>
     </section>
+
+    <canvas class="heart3d" aria-hidden="true"></canvas>
 
     <h1 class="title t-display"><span class="ln"><span>Heart health</span></span><span class="ln"><span>overview</span></span></h1>
 
@@ -660,10 +684,19 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
         pre  = function () { clearTimeout(window.__pre);
                              root.classList.remove('pre'); };
 
+    /* The render hand-off waits for this rather than guessing, so a model
+       that arrives mid-sequence cannot fight the entrance for the same
+       element. Announced on every exit, including the ones that never
+       play a frame. */
+    function settled() {
+      window.__entranceDone = true;
+      document.dispatchEvent(new Event('entrance-done'));
+    }
+
     /* Reduced motion, or a browser without the animation API: no sequence
        at all - the finished screen, immediately. */
     if (!('animate' in Element.prototype) ||
-        matchMedia('(prefers-reduced-motion: reduce)').matches) { pre(); return; }
+        matchMedia('(prefers-reduced-motion: reduce)').matches) { pre(); settled(); return; }
 
     var $  = function (s) { return document.querySelector(s); },
         $$ = function (s) { return [].slice.call(document.querySelectorAll(s)); };
@@ -823,9 +856,260 @@ document.documentElement.className+=" pre";window.__pre=setTimeout(function(){do
         A.length = 0;
         trace.style.strokeDasharray = '';
         hinted.forEach(function (h) { if (h[0]) { h[0].style.willChange = ''; } });
+        settled();
       }
     }
   })();
+</script>
+
+<script type="module">
+  /* =============================== RENDER ===============================
+     The heart as geometry, beating.
+
+     The model, the lighting rig and the cardiac cycle below are the ones
+     from the heart_ui prototype - same GLB, same three lights, same 1.75s
+     cycle built from five gaussian phases. What is new here is only how it
+     is fitted to this screen: the canvas is pinned over the poster image's
+     own box, so the render lands exactly where the still heart already
+     sat in every tier, and the composition around it - the trace passing
+     behind it, the dot on the valve, the callout crossing it - is
+     undisturbed.
+
+     Nothing here is required for the page to work. This is a module, so it
+     is deferred by definition and cannot block the entrance; if the
+     browser has no WebGL, or the model never arrives, the poster frame
+     simply stays and the screen is what it was. */
+  import * as THREE from './assets/vendor/three.module.min.js';
+  import { GLTFLoader } from './assets/vendor/GLTFLoader.js';
+  import { RoomEnvironment } from './assets/vendor/RoomEnvironment.js';
+  import { MeshoptDecoder } from './assets/vendor/meshopt_decoder.module.js';
+
+  const MODEL = 'assets/models/heart.glb';
+
+  const img    = document.querySelector('.heart');
+  const canvas = document.querySelector('.heart3d');
+  const stage  = document.getElementById('stage');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+
+  if (!img || !canvas || !stage) { throw new Error('render: nothing to attach to'); }
+
+  /* ---------------------------------------------------------------- rig --
+     Lifted from the prototype unchanged: a room environment for the
+     reflections, a warm/cool hemisphere, and the blue key, pink rim and
+     cyan fill that give this heart its split lighting. */
+  const renderer = new THREE.WebGLRenderer({
+    canvas, alpha: true, antialias: true, powerPreference: 'high-performance',
+  });
+  renderer.setPixelRatio(1);              /* the buffer is sized explicitly below */
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.88;
+  renderer.setClearColor(0x000000, 0);
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(27.5, 1, 0.1, 100);
+  camera.position.set(0, 0.02, 7.6);
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.03).texture;
+  pmrem.dispose();
+
+  const displayRoot = new THREE.Group();
+  displayRoot.position.set(0, 0.05, 0);
+  scene.add(displayRoot);
+
+  const heartRoot = new THREE.Group();
+  heartRoot.rotation.set(-0.035, -0.12, -0.085);
+  displayRoot.add(heartRoot);
+
+  scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x16001a, 0.9));
+  const blueKey = new THREE.PointLight(0x187cff, 17, 13, 1.7);
+  blueKey.position.set(2.6, 1.6, 4.2);
+  const pinkRim = new THREE.PointLight(0xff268f, 21, 12, 1.6);
+  pinkRim.position.set(-3.3, 1.2, 2.4);
+  const cyanFill = new THREE.PointLight(0x65e5ff, 8, 9, 1.8);
+  cyanFill.position.set(0.2, -2.3, 3.8);
+  scene.add(blueKey, pinkRim, cyanFill);
+
+  /* -------------------------------------------------------------- fitting --
+     The canvas carries no placement of its own. It is measured onto the
+     image's box in the stage's own coordinates, which is what makes one
+     rule cover every tier: whatever the image is doing - placed absolutely
+     on the desktop canvas, or sized by the flex row on a phone - the
+     render is doing the same thing. */
+  let cssW = 0, cssH = 0;
+  function fitToPoster() {
+    const ir = img.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+    if (!ir.width || !ir.height) { return; }
+    const scale = (sr.width / stage.offsetWidth) || 1;   /* the canvas tier's --s */
+    const w = ir.width / scale, h = ir.height / scale;
+
+    canvas.style.left   = ((ir.left - sr.left) / scale) + 'px';
+    canvas.style.top    = ((ir.top  - sr.top)  / scale) + 'px';
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+
+    /* The backing store is sized in real device pixels - the stage's scale
+       included, since that is what the render is finally seen through -
+       and capped, so a 4K window cannot ask for a buffer nobody needs. */
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const pw = Math.max(2, Math.min(Math.round(ir.width * dpr), 1400));
+    const ph = Math.max(2, Math.round(pw * (h / w)));
+    if (pw !== cssW || ph !== cssH) {
+      cssW = pw; cssH = ph;
+      renderer.setSize(pw, ph, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+  }
+
+  /* The poster's box moves for exactly the reasons the canvas fit does, so
+     this rides the same signals - and the observer catches the tier
+     changes that never raise an event. */
+  addEventListener('resize', fitToPoster, { passive: true });
+  if (window.ResizeObserver) { new ResizeObserver(fitToPoster).observe(document.documentElement); }
+
+  /* ---------------------------------------------------------------- model --
+     Framed to the poster rather than to the prototype's stage: the heart
+     is scaled so its own height fills the same share of this box that the
+     drawn heart fills of the image, and centred on what it actually
+     occupies rather than on its origin. */
+  /* Calibrated against the poster's own silhouette rather than guessed:
+     with these two numbers the render's ink lands within about a percent
+     of the drawn heart's box on the desktop canvas, which is what lets the
+     hand-off read as the same heart rather than a second one. */
+  const FRAME_HEIGHT = 3.324;    /* model units - the drawn heart is 92% of frame height */
+  const FRAME_OFFSET_Y = 0.077;  /* and sits a touch above centre */
+
+  function frameModel(model) {
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const centre = box.getCenter(new THREE.Vector3());
+    const scale = FRAME_HEIGHT / Math.max(size.y, 0.001);
+    model.scale.multiplyScalar(scale);
+    model.position.sub(centre.multiplyScalar(scale));
+    model.position.y += FRAME_OFFSET_Y;
+  }
+
+  function polish(model) {
+    model.traverse((o) => {
+      if (!o.isMesh) { return; }
+      o.castShadow = o.receiveShadow = false;
+      o.frustumCulled = true;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => {
+        if (!m) { return; }
+        m.envMapIntensity = 1.5;
+        if ('metalness' in m) { m.metalness = Math.max(m.metalness, 0.28); }
+        if ('roughness' in m) { m.roughness = Math.min(m.roughness, 0.24); }
+        if ('clearcoat' in m) { m.clearcoat = 1; }
+        if ('clearcoatRoughness' in m) { m.clearcoatRoughness = 0.08; }
+        m.needsUpdate = true;
+      });
+    });
+  }
+
+  /* ------------------------------------------------------------ heartbeat --
+     The prototype's cycle, unchanged. One 1.75s period built from five
+     gaussian phases - the systolic contraction and its rebound, a smaller
+     second pair, and the slow diastolic fill - which is what keeps it
+     reading as a heart rather than a pulsing scale. The beat is
+     anisotropic on purpose: the heart squeezes hardest through its depth,
+     least through its height. */
+  const PERIOD = 1.75;
+  const gaussian = (v, centre, width) => {
+    const d = (v - centre) / width;
+    return Math.exp(-(d * d));
+  };
+
+  const clock = new THREE.Clock(false);
+  let still = reduce.matches;
+
+  function frame() {
+    const t = clock.getElapsedTime();
+    const cycle = (t % PERIOD) / PERIOD;
+
+    const primaryContraction   = still ? 0 : gaussian(cycle, 0.12,  0.075) * 0.038;
+    const outwardRebound       = still ? 0 : gaussian(cycle, 0.255, 0.1)   * 0.023;
+    const secondaryContraction = still ? 0 : gaussian(cycle, 0.43,  0.09)  * 0.012;
+    const secondaryRebound     = still ? 0 : gaussian(cycle, 0.56,  0.1)   * 0.007;
+    const diastolicFill        = still ? 0 : gaussian(cycle, 0.78,  0.2)   * 0.004;
+
+    const contraction = primaryContraction + secondaryContraction;
+    const expansion   = outwardRebound + secondaryRebound + diastolicFill;
+    const pump        = expansion - contraction;
+
+    displayRoot.scale.set(1 + pump * 0.86, 1 + pump * 0.56, 1 + pump * 1.18);
+    displayRoot.position.y = 0.05 + contraction * 0.18 - expansion * 0.08;
+    heartRoot.rotation.z = THREE.MathUtils.lerp(
+      heartRoot.rotation.z, -0.085 - contraction * 0.34 + expansion * 0.14, 0.1);
+
+    renderer.render(scene, camera);
+  }
+
+  /* Reduced motion gets the heart, held still on one frame - the geometry
+     is the point, the beat is the motion. */
+  function start() {
+    if (still) { renderer.render(scene, camera); return; }
+    clock.start();
+    renderer.setAnimationLoop(frame);
+  }
+  reduce.addEventListener('change', (e) => {
+    still = e.matches;
+    if (still) { renderer.setAnimationLoop(null); clock.stop(); renderer.render(scene, camera); }
+    else { start(); }
+  });
+
+  /* ------------------------------------------------------------- hand-off --
+     The render replaces the poster only once it has a frame to show, and
+     only once the entrance has finished with that same element, so the two
+     never animate the image's opacity against each other. */
+  function afterEntrance() {
+    return new Promise((resolve) => {
+      if (window.__entranceDone) { resolve(); return; }
+      let done = false;
+      const go = () => { if (!done) { done = true; resolve(); } };
+      document.addEventListener('entrance-done', go, { once: true });
+      setTimeout(go, 6000);                       /* never wait on a signal forever */
+    });
+  }
+
+  function reveal() {
+    /* The class is the resting state and it is CSS, so the hand-off is
+       already correct the moment it is set. The two tweens only smooth the
+       crossing, and they are dropped once they have run - the same rule the
+       entrance follows, so nothing of this is left attached to the page. */
+    stage.classList.add('heart-live');
+    if (!('animate' in Element.prototype)) { return; }
+    const o = { duration: 560, easing: 'cubic-bezier(.25,.5,.3,1)', fill: 'backwards' };
+    const out = img.animate([{ opacity: 1 }, { opacity: 0 }], o);
+    const into = canvas.animate([{ opacity: 0 }, { opacity: 1 }], o);
+    const drop = () => [out, into].forEach((a) => { try { a.cancel(); } catch (e) {} });
+    Promise.all([out.finished, into.finished]).then(drop, drop);
+  }
+
+  /* The model carries the same 997,700 vertices the prototype's export
+     does; it is only packed differently - quantized attributes behind
+     EXT_meshopt_compression, which is a third of the bytes off the wire
+     for identical geometry. That costs the decoder imported above. */
+  fitToPoster();
+  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(MODEL, async (gltf) => {
+    const model = gltf.scene;
+    polish(model);
+    frameModel(model);
+    heartRoot.add(model);
+    fitToPoster();
+
+    if (renderer.compileAsync) { await renderer.compileAsync(scene, camera); }
+    else { renderer.compile(scene, camera); }
+    renderer.render(scene, camera);                /* a frame exists before the swap */
+
+    await afterEntrance();
+    start();
+    reveal();
+  }, undefined, (err) => {
+    console.warn('render: the heart model could not be loaded; keeping the poster frame.', err);
+  });
 </script>
 </body>
 </html>
